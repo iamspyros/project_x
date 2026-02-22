@@ -14,11 +14,9 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 # ── Runtime stage ──
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
-# Install libs required by Aspose.Words for PDF rendering on Linux
+# Install libs required by QuestPDF / SkiaSharp for PDF rendering on Linux
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libgdiplus \
-        libc6-dev \
         libfontconfig1 \
         libfreetype6 \
         fonts-dejavu-core \

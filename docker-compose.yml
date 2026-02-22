@@ -29,8 +29,6 @@ services:
       - Templates__FolderPath=/app/data/templates
       # Auth disabled for local development
       - Authentication__Enabled=false
-      # Aspose license (optional – leave empty for evaluation mode)
-      - Aspose__LicensePath=
       # CORS origins for Flutter app (optional)
       - Cors__AllowedOrigins__0=http://localhost:3000
     restart: unless-stopped

@@ -5,37 +5,13 @@
 }
 
 <div class="mb-4">
-    <h1><i class="bi bi-file-earmark-word me-2"></i>Word Templates</h1>
-    <p class="text-muted">Manage DOCX templates used for proposal generation. Templates control all styling — code only injects data.</p>
+    <h1><i class="bi bi-palette me-2"></i>PDF Templates</h1>
+    <p class="text-muted">Branded PDF templates are generated in code using QuestPDF — no external Word documents needed.</p>
 </div>
 
 <div class="row g-4">
-    <!-- Upload Template -->
-    <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload Template</h5>
-            </div>
-            <div class="card-body">
-                <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="templateFile" class="form-label">Select DOCX template</label>
-                        <input type="file" class="form-control" id="templateFile" name="templateFile"
-                               accept=".docx,.doc" required />
-                        <div class="form-text">
-                            Upload a Word document (.docx) with mail merge fields. See format reference below.
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload me-1"></i>Upload Template
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- Available Templates -->
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-files me-2"></i>Available Templates</h5>
@@ -48,16 +24,10 @@
                         {
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="bi bi-file-earmark-word text-primary me-2"></i>
+                                    <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
                                     <strong>@t</strong>
                                 </div>
-                                <form method="post" asp-page-handler="Delete" class="d-inline">
-                                    <input type="hidden" name="fileName" value="@t" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            onclick="return confirm('Delete this template?');">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <span class="badge bg-primary">Built-in</span>
                             </div>
                         }
                     </div>
@@ -66,69 +36,23 @@
                 {
                     <div class="text-center text-muted py-4">
                         <i class="bi bi-file-earmark-x display-4"></i>
-                        <p class="mt-2">No templates uploaded yet.</p>
-                        <p class="small">Upload a DOCX template or configure the templates folder in <code>appsettings.json</code>.</p>
+                        <p class="mt-2">No templates available.</p>
                     </div>
                 }
             </div>
         </div>
     </div>
-</div>
 
-<!-- Template Format Reference -->
-<div class="card mt-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Template Format Reference</h5>
-    </div>
-    <div class="card-body">
-        <h6>Mail Merge Fields</h6>
-        <p>Your Word template should contain these mail merge fields (Insert → Field → MergeField in Word):</p>
-
-        <div class="row g-4">
-            <div class="col-md-6">
-                <h6 class="text-muted">Quote-Level Fields</h6>
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light">
-                        <tr><th>Field Name</th><th>Description</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td><code>QuoteNumber</code></td><td>Quote reference number</td></tr>
-                        <tr><td><code>CustomerName</code></td><td>Customer name</td></tr>
-                        <tr><td><code>CustomerCompany</code></td><td>Customer company</td></tr>
-                        <tr><td><code>CustomerEmail</code></td><td>Customer email</td></tr>
-                        <tr><td><code>ValidUntil</code></td><td>Quote expiry date</td></tr>
-                        <tr><td><code>Currency</code></td><td>Quote currency</td></tr>
-                        <tr><td><code>TotalAmount</code></td><td>Grand total</td></tr>
-                        <tr><td><code>CreatedDate</code></td><td>Quote creation date</td></tr>
-                        <tr><td><code>Notes</code></td><td>Additional notes</td></tr>
-                    </tbody>
-                </table>
+    <!-- Info -->
+    <div class="col-md-4">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>About Templates</h5>
             </div>
-            <div class="col-md-6">
-                <h6 class="text-muted">Pricing Table Fields (within PriceRows region)</h6>
-                <table class="table table-sm table-bordered">
-                    <thead class="table-light">
-                        <tr><th>Field Name</th><th>Description</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td><code>ProductName</code></td><td>Product name</td></tr>
-                        <tr><td><code>Sku</code></td><td>Product SKU</td></tr>
-                        <tr><td><code>Quantity</code></td><td>Ordered quantity</td></tr>
-                        <tr><td><code>CommitmentTerm</code></td><td>Contract term</td></tr>
-                        <tr><td><code>BillingFrequency</code></td><td>Billing cycle</td></tr>
-                        <tr><td><code>UnitPrice</code></td><td>Price per unit</td></tr>
-                        <tr><td><code>DiscountPercent</code></td><td>Applied discount</td></tr>
-                        <tr><td><code>LineTotal</code></td><td>Total for this line</td></tr>
-                    </tbody>
-                </table>
+            <div class="card-body">
+                <p class="small">Templates are Vodafone Business branded and built directly into the application.</p>
+                <p class="small mb-0">To customise a template, edit <code>DocumentService.cs</code> in the project source.</p>
             </div>
-        </div>
-
-        <div class="alert alert-info mt-3">
-            <i class="bi bi-lightbulb me-2"></i>
-            <strong>Important:</strong> The pricing table row should be wrapped with
-            <code>TableStart:PriceRows</code> and <code>TableEnd:PriceRows</code> merge fields.
-            The engine clones the template row for each line item, preserving all Word styling.
         </div>
     </div>
 </div>

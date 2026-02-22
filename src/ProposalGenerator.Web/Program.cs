@@ -69,13 +69,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- Aspose license ---
-var asposeLicensePath = builder.Configuration["Aspose:LicensePath"];
-if (!string.IsNullOrEmpty(asposeLicensePath) && File.Exists(asposeLicensePath))
-{
-    var license = new Aspose.Words.License();
-    license.SetLicense(asposeLicensePath);
-}
+// --- QuestPDF community license ---
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var app = builder.Build();
 
@@ -99,7 +94,7 @@ if (!File.Exists(defaultTemplatePath))
     }
     catch (Exception ex)
     {
-        app.Logger.LogWarning(ex, "Could not generate default template (Aspose license may be required)");
+        app.Logger.LogWarning(ex, "Could not initialise default template");
     }
 }
 

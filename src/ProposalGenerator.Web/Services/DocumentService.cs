@@ -1,7 +1,7 @@
-using System.Data;
-using Aspose.Words;
-using Aspose.Words.MailMerging;
 using ProposalGenerator.Web.Models.Domain;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace ProposalGenerator.Web.Services;
 
@@ -10,244 +10,336 @@ public class DocumentService : IDocumentService
     private readonly IBlobStorageService _blobStorage;
     private readonly IConfiguration _configuration;
     private readonly ILogger<DocumentService> _logger;
+    private readonly IWebHostEnvironment _env;
+
+    // Vodafone brand colours
+    private static readonly string VodafoneRed = "#E60000";
+    private static readonly string DarkGrey = "#333333";
+    private static readonly string LightGrey = "#F4F4F4";
+    private static readonly string MediumGrey = "#666666";
+    private static readonly string TableHeaderBg = "#E60000";
+    private static readonly string TableAltRowBg = "#FFF5F5";
 
     public DocumentService(
         IBlobStorageService blobStorage,
         IConfiguration configuration,
-        ILogger<DocumentService> logger)
+        ILogger<DocumentService> logger,
+        IWebHostEnvironment env)
     {
         _blobStorage = blobStorage;
         _configuration = configuration;
         _logger = logger;
+        _env = env;
     }
 
-    public async Task<byte[]> GeneratePreviewPdfAsync(Quote quote)
+    public Task<byte[]> GeneratePreviewPdfAsync(Quote quote)
     {
-        return await GeneratePdfInternalAsync(quote, isPreview: true);
+        return Task.FromResult(GeneratePdf(quote, isPreview: true));
     }
 
-    public async Task<byte[]> GenerateFinalPdfAsync(Quote quote)
+    public Task<byte[]> GenerateFinalPdfAsync(Quote quote)
     {
-        return await GeneratePdfInternalAsync(quote, isPreview: false);
+        return Task.FromResult(GeneratePdf(quote, isPreview: false));
     }
 
-    public async Task<List<string>> GetAvailableTemplatesAsync()
+    public Task<List<string>> GetAvailableTemplatesAsync()
     {
-        var templates = new List<string>();
-
-        // Check local templates folder
-        var templatesFolder = _configuration["Templates:FolderPath"] ?? "./templates";
-        if (Directory.Exists(templatesFolder))
+        // With QuestPDF we use code-based templates instead of .docx files
+        var templates = new List<string>
         {
-            templates.AddRange(
-                Directory.GetFiles(templatesFolder, "*.docx")
-                    .Select(Path.GetFileName)!);
-        }
-
-        // Also check blob storage
-        var blobTemplates = await _blobStorage.ListFilesAsync("templates", ".docx");
-        templates.AddRange(blobTemplates.Where(t => !templates.Contains(t)));
-
-        return templates;
-    }
-
-    private async Task<byte[]> GeneratePdfInternalAsync(Quote quote, bool isPreview)
-    {
-        var templateBytes = await LoadTemplateAsync(quote.TemplateName);
-        if (templateBytes == null)
-        {
-            _logger.LogWarning("Template '{Template}' not found, generating basic document", quote.TemplateName);
-            return GenerateBasicPdf(quote, isPreview);
-        }
-
-        using var templateStream = new MemoryStream(templateBytes);
-        var doc = new Document(templateStream);
-
-        // Simple field merge for quote-level fields
-        doc.MailMerge.Execute(
-            new string[]
-            {
-                "QuoteNumber", "CustomerName", "CustomerEmail", "CustomerCompany",
-                "ValidUntil", "TotalAmount", "Currency", "Notes", "CreatedDate",
-                "DocumentType"
-            },
-            new object[]
-            {
-                quote.QuoteNumber,
-                quote.CustomerName,
-                quote.CustomerEmail ?? "",
-                quote.CustomerCompany ?? "",
-                quote.ValidUntil.ToString("dd MMMM yyyy"),
-                quote.TotalAmount.ToString("N2"),
-                quote.Currency,
-                quote.Notes ?? "",
-                quote.CreatedAt.ToString("dd MMMM yyyy"),
-                isPreview ? "PREVIEW" : "FINAL"
-            });
-
-        // Mail merge with regions for the pricing table
-        var priceTable = BuildPriceDataTable(quote.LineItems);
-        doc.MailMerge.ExecuteWithRegions(priceTable);
-
-        // Add watermark for preview
-        if (isPreview)
-        {
-            AddWatermark(doc, "PREVIEW");
-        }
-
-        // Export to PDF
-        using var outputStream = new MemoryStream();
-        doc.Save(outputStream, SaveFormat.Pdf);
-        return outputStream.ToArray();
-    }
-
-    private async Task<byte[]?> LoadTemplateAsync(string? templateName)
-    {
-        if (string.IsNullOrEmpty(templateName))
-            templateName = "default-proposal.docx";
-
-        // Try local folder first
-        var templatesFolder = _configuration["Templates:FolderPath"] ?? "./templates";
-        var localPath = Path.Combine(templatesFolder, templateName);
-        if (File.Exists(localPath))
-        {
-            return await File.ReadAllBytesAsync(localPath);
-        }
-
-        // Try blob storage
-        return await _blobStorage.DownloadAsync("templates", templateName);
-    }
-
-    private DataTable BuildPriceDataTable(List<QuoteLineItem> lineItems)
-    {
-        var table = new DataTable("PriceRows");
-        table.Columns.Add("ProductName", typeof(string));
-        table.Columns.Add("Sku", typeof(string));
-        table.Columns.Add("Quantity", typeof(string));
-        table.Columns.Add("CommitmentTerm", typeof(string));
-        table.Columns.Add("BillingFrequency", typeof(string));
-        table.Columns.Add("UnitPrice", typeof(string));
-        table.Columns.Add("Discount", typeof(string));
-        table.Columns.Add("LineTotal", typeof(string));
-
-        foreach (var item in lineItems)
-        {
-            table.Rows.Add(
-                item.ProductName,
-                item.Sku,
-                item.Quantity.ToString(),
-                item.CommitmentTerm ?? "-",
-                item.BillingFrequency ?? "-",
-                $"{item.UnitPrice:N2} {item.Currency}",
-                item.DiscountPercent.HasValue ? $"{item.DiscountPercent:N1}%" : "-",
-                $"{item.LineTotal:N2} {item.Currency}");
-        }
-
-        return table;
-    }
-
-    private void AddWatermark(Document doc, string text)
-    {
-        var builder = new DocumentBuilder(doc);
-        var shape = new Aspose.Words.Drawing.Shape(doc, Aspose.Words.Drawing.ShapeType.TextPlainText)
-        {
-            TextPath = { Text = text, FontFamily = "Arial" },
-            Width = 500,
-            Height = 100,
-            Rotation = -45,
-            FillColor = System.Drawing.Color.LightGray,
-            StrokeColor = System.Drawing.Color.LightGray,
-            RelativeHorizontalPosition = Aspose.Words.Drawing.RelativeHorizontalPosition.Page,
-            RelativeVerticalPosition = Aspose.Words.Drawing.RelativeVerticalPosition.Page,
-            Left = 50,
-            Top = 300,
-            WrapType = Aspose.Words.Drawing.WrapType.None,
-            BehindText = true
+            "vodafone-business",
+            "vodafone-compact"
         };
-
-        foreach (Aspose.Words.Section section in doc.Sections)
-        {
-            var header = section.HeadersFooters[HeaderFooterType.HeaderPrimary];
-            if (header == null)
-            {
-                header = new HeaderFooter(doc, HeaderFooterType.HeaderPrimary);
-                section.HeadersFooters.Add(header);
-            }
-            header.AppendChild(shape.Clone(true));
-        }
+        return Task.FromResult(templates);
     }
 
-    private byte[] GenerateBasicPdf(Quote quote, bool isPreview)
+    // --- Private helpers -------------------------------------------------------
+
+    private byte[] GeneratePdf(Quote quote, bool isPreview)
     {
-        var doc = new Document();
-        var builder = new DocumentBuilder(doc);
+        var logoBytes = LoadLogoBytes();
 
-        // Title
-        builder.ParagraphFormat.StyleIdentifier = StyleIdentifier.Title;
-        builder.Writeln(isPreview ? "QUOTE PREVIEW" : "QUOTE");
-        builder.ParagraphFormat.StyleIdentifier = StyleIdentifier.Normal;
-
-        // Quote info
-        builder.Writeln($"Quote Number: {quote.QuoteNumber}");
-        builder.Writeln($"Customer: {quote.CustomerName}");
-        if (!string.IsNullOrEmpty(quote.CustomerCompany))
-            builder.Writeln($"Company: {quote.CustomerCompany}");
-        builder.Writeln($"Date: {quote.CreatedAt:dd MMMM yyyy}");
-        builder.Writeln($"Valid Until: {quote.ValidUntil:dd MMMM yyyy}");
-        builder.Writeln();
-
-        // Pricing table
-        if (quote.LineItems.Any())
+        var document = QuestPDF.Fluent.Document.Create(container =>
         {
-            var table = builder.StartTable();
-
-            // Header row
-            string[] headers = { "Product", "SKU", "Qty", "Term", "Billing", "Unit Price", "Discount", "Total" };
-            foreach (var header in headers)
+            container.Page(page =>
             {
-                builder.InsertCell();
-                builder.CellFormat.Shading.BackgroundPatternColor = System.Drawing.Color.FromArgb(0, 51, 102);
-                builder.Font.Color = System.Drawing.Color.White;
-                builder.Font.Bold = true;
-                builder.Write(header);
-            }
-            builder.EndRow();
+                page.Size(PageSizes.A4);
+                page.MarginVertical(30);
+                page.MarginHorizontal(40);
 
-            // Data rows
-            builder.Font.Color = System.Drawing.Color.Black;
-            builder.Font.Bold = false;
-            foreach (var item in quote.LineItems)
-            {
-                builder.InsertCell(); builder.CellFormat.Shading.BackgroundPatternColor = System.Drawing.Color.White; builder.Write(item.ProductName);
-                builder.InsertCell(); builder.Write(item.Sku);
-                builder.InsertCell(); builder.Write(item.Quantity.ToString());
-                builder.InsertCell(); builder.Write(item.CommitmentTerm ?? "-");
-                builder.InsertCell(); builder.Write(item.BillingFrequency ?? "-");
-                builder.InsertCell(); builder.Write($"{item.UnitPrice:N2} {item.Currency}");
-                builder.InsertCell(); builder.Write(item.DiscountPercent.HasValue ? $"{item.DiscountPercent:N1}%" : "-");
-                builder.InsertCell(); builder.Write($"{item.LineTotal:N2} {item.Currency}");
-                builder.EndRow();
-            }
-
-            builder.EndTable();
-            builder.Writeln();
-
-            // Total
-            builder.Font.Bold = true;
-            builder.Font.Size = 14;
-            builder.Writeln($"Total: {quote.TotalAmount:N2} {quote.Currency}");
-        }
-
-        if (!string.IsNullOrEmpty(quote.Notes))
-        {
-            builder.Font.Bold = false;
-            builder.Font.Size = 10;
-            builder.Writeln();
-            builder.Writeln($"Notes: {quote.Notes}");
-        }
+                page.Header().Element(c => ComposeHeader(c, logoBytes, isPreview));
+                page.Content().Element(c => ComposeContent(c, quote, isPreview));
+                page.Footer().Element(c => ComposeFooter(c, quote));
+            });
+        });
 
         using var stream = new MemoryStream();
-        doc.Save(stream, SaveFormat.Pdf);
+        document.GeneratePdf(stream);
         return stream.ToArray();
+    }
+
+    private byte[]? LoadLogoBytes()
+    {
+        try
+        {
+            var logoPath = Path.Combine(_env.WebRootPath, "images", "vodafone-logo.png");
+            if (File.Exists(logoPath))
+                return File.ReadAllBytes(logoPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load Vodafone logo for PDF");
+        }
+        return null;
+    }
+
+    // --- Header ----------------------------------------------------------------
+
+    private void ComposeHeader(IContainer container, byte[]? logoBytes, bool isPreview)
+    {
+        container.Column(column =>
+        {
+            column.Item().Row(row =>
+            {
+                if (logoBytes != null)
+                {
+                    row.ConstantItem(160).Height(45).Image(logoBytes).FitArea();
+                }
+                else
+                {
+                    row.ConstantItem(160).Height(45)
+                        .AlignMiddle()
+                        .Text("Vodafone Business")
+                        .FontSize(18).Bold().FontColor(VodafoneRed);
+                }
+
+                row.RelativeItem().AlignRight().AlignMiddle()
+                    .Text(isPreview ? "QUOTE PREVIEW" : "BUSINESS PROPOSAL")
+                    .FontSize(14).Bold().FontColor(DarkGrey);
+            });
+
+            // Red accent bar
+            column.Item().PaddingTop(8)
+                .Height(3)
+                .Background(VodafoneRed);
+        });
+    }
+
+    // --- Content ---------------------------------------------------------------
+
+    private void ComposeContent(IContainer container, Quote quote, bool isPreview)
+    {
+        container.PaddingTop(20).Column(column =>
+        {
+            // Preview watermark notice
+            if (isPreview)
+            {
+                column.Item().PaddingBottom(10)
+                    .Background("#FFF3CD").Padding(8)
+                    .Text("PREVIEW - This document has not been finalised.")
+                    .FontSize(10).FontColor("#856404");
+            }
+
+            // Quote Details
+            column.Item().PaddingBottom(15).Element(c => ComposeQuoteDetails(c, quote));
+
+            // Customer Information
+            column.Item().PaddingBottom(15).Element(c => ComposeCustomerInfo(c, quote));
+
+            // Pricing Table
+            if (quote.LineItems.Any())
+            {
+                column.Item().PaddingBottom(15).Element(c => ComposePricingTable(c, quote));
+            }
+
+            // Total
+            column.Item().PaddingBottom(15).Element(c => ComposeTotal(c, quote));
+
+            // Notes
+            if (!string.IsNullOrEmpty(quote.Notes))
+            {
+                column.Item().Element(c => ComposeNotes(c, quote));
+            }
+        });
+    }
+
+    private void ComposeQuoteDetails(IContainer container, Quote quote)
+    {
+        container.Column(col =>
+        {
+            col.Item().PaddingBottom(6)
+                .Text("Quote Details").FontSize(14).Bold().FontColor(VodafoneRed);
+
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(cols =>
+                {
+                    cols.ConstantColumn(140);
+                    cols.RelativeColumn();
+                });
+
+                AddDetailRow(table, "Quote Number", quote.QuoteNumber);
+                AddDetailRow(table, "Date", quote.CreatedAt.ToString("dd MMMM yyyy"));
+                AddDetailRow(table, "Valid Until", quote.ValidUntil.ToString("dd MMMM yyyy"));
+                AddDetailRow(table, "Currency", quote.Currency);
+            });
+        });
+    }
+
+    private void ComposeCustomerInfo(IContainer container, Quote quote)
+    {
+        container.Column(col =>
+        {
+            col.Item().PaddingBottom(6)
+                .Text("Customer Information").FontSize(14).Bold().FontColor(VodafoneRed);
+
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(cols =>
+                {
+                    cols.ConstantColumn(140);
+                    cols.RelativeColumn();
+                });
+
+                AddDetailRow(table, "Name", quote.CustomerName);
+                if (!string.IsNullOrEmpty(quote.CustomerCompany))
+                    AddDetailRow(table, "Company", quote.CustomerCompany);
+                if (!string.IsNullOrEmpty(quote.CustomerEmail))
+                    AddDetailRow(table, "Email", quote.CustomerEmail);
+            });
+        });
+    }
+
+    private static void AddDetailRow(TableDescriptor table, string label, string value)
+    {
+        table.Cell().PaddingVertical(3).Text(label).FontSize(10).Bold().FontColor("#333333");
+        table.Cell().PaddingVertical(3).Text(value).FontSize(10).FontColor("#333333");
+    }
+
+    // --- Pricing table ---------------------------------------------------------
+
+    private void ComposePricingTable(IContainer container, Quote quote)
+    {
+        container.Column(col =>
+        {
+            col.Item().PaddingBottom(6)
+                .Text("Pricing").FontSize(14).Bold().FontColor(VodafoneRed);
+
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(cols =>
+                {
+                    cols.RelativeColumn(3);    // Product
+                    cols.RelativeColumn(1.5f); // SKU
+                    cols.ConstantColumn(40);   // Qty
+                    cols.RelativeColumn(1.2f); // Term
+                    cols.RelativeColumn(1.2f); // Billing
+                    cols.RelativeColumn(1.5f); // Unit Price
+                    cols.ConstantColumn(55);   // Discount
+                    cols.RelativeColumn(1.5f); // Total
+                });
+
+                // Header
+                var headers = new[] { "Product", "SKU", "Qty", "Term", "Billing", "Unit Price", "Disc.", "Line Total" };
+                foreach (var h in headers)
+                {
+                    table.Cell()
+                        .Background(TableHeaderBg)
+                        .Padding(5)
+                        .Text(h).FontSize(8).Bold().FontColor(Colors.White);
+                }
+
+                // Data rows
+                var rowIndex = 0;
+                foreach (var item in quote.LineItems)
+                {
+                    var bg = rowIndex % 2 == 1 ? TableAltRowBg : "#FFFFFF";
+
+                    PriceCell(table, item.ProductName, bg);
+                    PriceCell(table, item.Sku, bg);
+                    PriceCell(table, item.Quantity.ToString(), bg);
+                    PriceCell(table, item.CommitmentTerm ?? "-", bg);
+                    PriceCell(table, item.BillingFrequency ?? "-", bg);
+                    PriceCell(table, $"{item.UnitPrice:N2} {item.Currency}", bg);
+                    PriceCell(table, item.DiscountPercent.HasValue ? $"{item.DiscountPercent:N1}%" : "-", bg);
+                    PriceCell(table, $"{item.LineTotal:N2} {item.Currency}", bg);
+
+                    rowIndex++;
+                }
+            });
+        });
+    }
+
+    private static void PriceCell(TableDescriptor table, string text, string bg)
+    {
+        table.Cell()
+            .Background(bg)
+            .BorderBottom(1).BorderColor("#E0E0E0")
+            .Padding(4)
+            .Text(text).FontSize(8).FontColor("#333333");
+    }
+
+    // --- Total -----------------------------------------------------------------
+
+    private void ComposeTotal(IContainer container, Quote quote)
+    {
+        container.AlignRight().Row(row =>
+        {
+            row.AutoItem()
+                .Background(LightGrey)
+                .Border(1).BorderColor("#E0E0E0")
+                .Padding(12)
+                .Text(text =>
+                {
+                    text.Span("Total: ").FontSize(14).Bold().FontColor(DarkGrey);
+                    text.Span($"{quote.TotalAmount:N2} {quote.Currency}")
+                        .FontSize(14).Bold().FontColor(VodafoneRed);
+                });
+        });
+    }
+
+    // --- Notes -----------------------------------------------------------------
+
+    private void ComposeNotes(IContainer container, Quote quote)
+    {
+        container.Column(col =>
+        {
+            col.Item().PaddingBottom(6)
+                .Text("Notes").FontSize(14).Bold().FontColor(VodafoneRed);
+            col.Item()
+                .Background(LightGrey)
+                .Padding(10)
+                .Text(quote.Notes ?? "").FontSize(10).FontColor(DarkGrey);
+        });
+    }
+
+    // --- Footer ----------------------------------------------------------------
+
+    private void ComposeFooter(IContainer container, Quote quote)
+    {
+        container.Column(col =>
+        {
+            col.Item().Height(2).Background(VodafoneRed);
+
+            col.Item().PaddingTop(6).Row(row =>
+            {
+                row.RelativeItem()
+                    .Text($"Vodafone Business  |  {quote.QuoteNumber}")
+                    .FontSize(7).FontColor(MediumGrey);
+
+                row.RelativeItem().AlignRight()
+                    .Text(text =>
+                    {
+                        text.Span("Page ").FontSize(7).FontColor(MediumGrey);
+                        text.CurrentPageNumber().FontSize(7).FontColor(MediumGrey);
+                        text.Span(" of ").FontSize(7).FontColor(MediumGrey);
+                        text.TotalPages().FontSize(7).FontColor(MediumGrey);
+                    });
+            });
+
+            col.Item().PaddingTop(2)
+                .Text("This document is confidential and intended for the named recipient only.")
+                .FontSize(6).FontColor("#999999");
+        });
     }
 }
