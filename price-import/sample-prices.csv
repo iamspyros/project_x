@@ -1,0 +1,11 @@
+Name,Sku,Description,Category,UnitPrice,Currency,CommitmentTerm,BillingFrequency
+Business Voice Premium,VOD-VOICE-001,Premium unified voice solution with advanced features,Voice,29.99,EUR,24 months,Monthly
+Business Voice Standard,VOD-VOICE-002,Standard voice package for small businesses,Voice,14.99,EUR,12 months,Monthly
+SD-WAN Enterprise,VOD-NET-001,Software-defined WAN for enterprise branch connectivity,Network,89.99,EUR,36 months,Monthly
+Dedicated Internet Access,VOD-NET-002,Guaranteed bandwidth dedicated internet connection,Network,149.99,EUR,24 months,Monthly
+Managed Firewall,VOD-SEC-001,24/7 managed firewall service with threat detection,Security,49.99,EUR,24 months,Monthly
+Endpoint Protection,VOD-SEC-002,Enterprise endpoint security with EDR capabilities,Security,8.99,EUR,12 months,Monthly
+IoT Connectivity Platform,VOD-IOT-001,Managed IoT connectivity with global SIM management,IoT,4.99,EUR,24 months,Monthly
+Teams Direct Routing,VOD-COLLAB-001,Microsoft Teams PSTN connectivity via direct routing,Collaboration,12.99,EUR,12 months,Monthly
+Cloud Backup 1TB,VOD-CLOUD-001,Automated cloud backup solution with 1TB storage,Cloud,19.99,EUR,12 months,Monthly
+DDoS Protection,VOD-SEC-003,Advanced DDoS mitigation service,Security,299.99,EUR,12 months,Monthly

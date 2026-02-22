@@ -1,0 +1,105 @@
+@page
+@model ProposalGenerator.Web.Pages.Quotes.IndexModel
+@{
+    ViewData["Title"] = "Quotes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-receipt me-2"></i>Quotes</h1>
+        <p class="text-muted mb-0">@Model.Quotes.Count total quotes</p>
+    </div>
+    <a asp-page="/Quotes/Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>New Quote
+    </a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusFilter))
+{
+    <div class="mb-3">
+        <span class="badge bg-primary me-2">Status: @Model.StatusFilter</span>
+        <a asp-page="/Quotes/Index" class="btn btn-sm btn-outline-secondary">Clear filter</a>
+    </div>
+}
+
+<div class="mb-3">
+    <strong class="me-2">Filter:</strong>
+    <a asp-page="/Quotes/Index" class="btn btn-sm btn-outline-secondary me-1 @(string.IsNullOrEmpty(Model.StatusFilter) ? "active" : "")">All</a>
+    <a asp-page="/Quotes/Index" asp-route-status="Draft" class="btn btn-sm btn-outline-secondary me-1 @(Model.StatusFilter == "Draft" ? "active" : "")">Draft</a>
+    <a asp-page="/Quotes/Index" asp-route-status="Finalized" class="btn btn-sm btn-outline-success me-1 @(Model.StatusFilter == "Finalized" ? "active" : "")">Finalized</a>
+    <a asp-page="/Quotes/Index" asp-route-status="Approved" class="btn btn-sm btn-outline-primary me-1 @(Model.StatusFilter == "Approved" ? "active" : "")">Approved</a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Quote #</th>
+                        <th>Customer</th>
+                        <th>Company</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th class="text-end">Total</th>
+                        <th>Valid Until</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Quotes.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                No quotes found. <a asp-page="/Quotes/Create">Create your first quote</a>.
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var q in Model.Quotes)
+                    {
+                        <tr>
+                            <td><code>@q.QuoteNumber</code></td>
+                            <td>@q.CustomerName</td>
+                            <td>@(q.CustomerCompany ?? "—")</td>
+                            <td>
+                                @{
+                                    var badgeClass = q.Status switch
+                                    {
+                                        QuoteStatus.Draft => "bg-secondary",
+                                        QuoteStatus.Preview => "bg-info",
+                                        QuoteStatus.Finalized => "bg-success",
+                                        QuoteStatus.Approved => "bg-primary",
+                                        QuoteStatus.Rejected => "bg-danger",
+                                        QuoteStatus.Expired => "bg-warning text-dark",
+                                        _ => "bg-secondary"
+                                    };
+                                }
+                                <span class="badge @badgeClass">@q.Status</span>
+                            </td>
+                            <td>@q.LineItems.Count</td>
+                            <td class="text-end fw-bold">@q.TotalAmount.ToString("N2") @q.Currency</td>
+                            <td>@q.ValidUntil.ToString("dd MMM yyyy")</td>
+                            <td><small>@q.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a asp-page="/Quotes/Details" asp-route-id="@q.Id"
+                                       class="btn btn-outline-secondary" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(q.GeneratedPdfPath))
+                                    {
+                                        <a href="/api/quotes/@q.Id/pdf" target="_blank"
+                                           class="btn btn-outline-success" title="Download PDF">
+                                            <i class="bi bi-file-pdf"></i>
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

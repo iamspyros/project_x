@@ -1,0 +1,36 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proposal-generator
+    ports:
+      - "8080:8080"
+    volumes:
+      # ── Your data folders (persisted on the host) ──
+      # Place your CSV price files in ./data/price-import/
+      # Place your .docx templates in ./data/templates/
+      # Generated PDFs and the SQLite DB are stored in ./data/storage/ and ./data/
+      - ./data/price-import:/app/data/price-import
+      - ./data/templates:/app/data/templates
+      - ./data/storage:/app/data/storage
+      - ./data/db:/app/data/db
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      # SQLite database inside the mounted volume so it persists across restarts
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/db/proposalgenerator.db
+      # Local filesystem mode (no Azure needed)
+      - BlobStorage__UseLocalFileSystem=true
+      - BlobStorage__LocalBasePath=/app/data/storage
+      # Where the app looks for CSV price files
+      - PriceImport__FolderPath=/app/data/price-import
+      # Where the app looks for Word templates
+      - Templates__FolderPath=/app/data/templates
+      # Auth disabled for local development
+      - Authentication__Enabled=false
+      # Aspose license (optional – leave empty for evaluation mode)
+      - Aspose__LicensePath=
+      # CORS origins for Flutter app (optional)
+      - Cors__AllowedOrigins__0=http://localhost:3000
+    restart: unless-stopped

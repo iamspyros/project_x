@@ -1,0 +1,151 @@
+@page
+@model ProposalGenerator.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+        <p class="text-muted">Enterprise Proposal Generation System</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-box-seam display-4 text-primary"></i>
+                <h3 class="mt-2">@Model.ProductCount</h3>
+                <p class="text-muted mb-0">Active Products</p>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a asp-page="/Products/Index" class="btn btn-sm btn-outline-primary">View Products</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-receipt display-4 text-success"></i>
+                <h3 class="mt-2">@Model.TotalQuotes</h3>
+                <p class="text-muted mb-0">Total Quotes</p>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a asp-page="/Quotes/Index" class="btn btn-sm btn-outline-success">View Quotes</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-hourglass-split display-4 text-warning"></i>
+                <h3 class="mt-2">@Model.DraftQuotes</h3>
+                <p class="text-muted mb-0">Draft Quotes</p>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a asp-page="/Quotes/Create" class="btn btn-sm btn-outline-warning">Create Quote</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle display-4 text-info"></i>
+                <h3 class="mt-2">@Model.FinalizedQuotes</h3>
+                <p class="text-muted mb-0">Finalized Quotes</p>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a asp-page="/Quotes/Index" class="btn btn-sm btn-outline-info">View All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Quotes</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentQuotes.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Quote #</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                    <th>Created</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var q in Model.RecentQuotes)
+                                {
+                                    <tr>
+                                        <td><code>@q.QuoteNumber</code></td>
+                                        <td>@q.CustomerName</td>
+                                        <td>
+                                            @{
+                                                var badgeClass = q.Status switch
+                                                {
+                                                    QuoteStatus.Draft => "bg-secondary",
+                                                    QuoteStatus.Preview => "bg-info",
+                                                    QuoteStatus.Finalized => "bg-success",
+                                                    QuoteStatus.Approved => "bg-primary",
+                                                    QuoteStatus.Rejected => "bg-danger",
+                                                    QuoteStatus.Expired => "bg-warning text-dark",
+                                                    _ => "bg-secondary"
+                                                };
+                                            }
+                                            <span class="badge @badgeClass">@q.Status</span>
+                                        </td>
+                                        <td>@q.TotalAmount.ToString("N2") @q.Currency</td>
+                                        <td>@q.CreatedAt.ToString("dd MMM yyyy")</td>
+                                        <td>
+                                            <a asp-page="/Quotes/Details" asp-route-id="@q.Id"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center my-4">
+                        No quotes yet. <a asp-page="/Quotes/Create">Create your first quote</a>.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a asp-page="/Quotes/Create" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>New Quote
+                </a>
+                <a asp-page="/PriceImport/Index" class="btn btn-outline-secondary">
+                    <i class="bi bi-upload me-2"></i>Import Prices
+                </a>
+                <a asp-page="/Templates/Index" class="btn btn-outline-secondary">
+                    <i class="bi bi-file-earmark-word me-2"></i>Manage Templates
+                </a>
+                <a asp-page="/Products/Index" class="btn btn-outline-secondary">
+                    <i class="bi bi-box-seam me-2"></i>View Product Catalog
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

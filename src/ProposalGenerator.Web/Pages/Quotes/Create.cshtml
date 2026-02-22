@@ -1,0 +1,159 @@
+@page
+@model ProposalGenerator.Web.Pages.Quotes.CreateModel
+@{
+    ViewData["Title"] = "Create Quote";
+}
+
+<div class="mb-4">
+    <h1><i class="bi bi-plus-circle me-2"></i>Create Quote</h1>
+    <p class="text-muted">Build a new proposal for a customer.</p>
+</div>
+
+<form method="post" id="quoteForm">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display:none"></div>
+
+    <div class="row g-4">
+        <!-- Customer Info -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person me-2"></i>Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="Input.CustomerName" class="form-label"></label>
+                        <input asp-for="Input.CustomerName" class="form-control" placeholder="e.g. Acme Corp" />
+                        <span asp-validation-for="Input.CustomerName" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.CustomerEmail" class="form-label"></label>
+                        <input asp-for="Input.CustomerEmail" class="form-control" type="email" placeholder="customer@example.com" />
+                        <span asp-validation-for="Input.CustomerEmail" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.CustomerCompany" class="form-label"></label>
+                        <input asp-for="Input.CustomerCompany" class="form-control" placeholder="Company name" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quote Settings -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Quote Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="Input.ValidUntil" class="form-label"></label>
+                        <input asp-for="Input.ValidUntil" class="form-control" type="date" />
+                        <span asp-validation-for="Input.ValidUntil" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.Currency" class="form-label"></label>
+                        <select asp-for="Input.Currency" class="form-select">
+                            <option value="EUR">EUR – Euro</option>
+                            <option value="USD">USD – US Dollar</option>
+                            <option value="GBP">GBP – British Pound</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.TemplateName" class="form-label"></label>
+                        <select asp-for="Input.TemplateName" class="form-select">
+                            <option value="">Default Template</option>
+                            @foreach (var t in Model.AvailableTemplates)
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.Notes" class="form-label"></label>
+                        <textarea asp-for="Input.Notes" class="form-control" rows="3"
+                                  placeholder="Optional notes for this quote..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Line Items</h5>
+            <button type="button" class="btn btn-sm btn-primary" id="addLineItem">
+                <i class="bi bi-plus me-1"></i>Add Product
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="lineItemsContainer">
+                @for (int i = 0; i < Model.Input.LineItems.Count; i++)
+                {
+                    <div class="line-item-row row g-2 mb-2 align-items-end" data-index="@i">
+                        <div class="col-md-5">
+                            <label class="form-label">Product</label>
+                            <select name="Input.LineItems[@i].ProductId" class="form-select product-select" required>
+                                <option value="">-- Select Product --</option>
+                                @foreach (var p in Model.AvailableProducts)
+                                {
+                                    <option value="@p.Id"
+                                            data-price="@p.UnitPrice"
+                                            data-currency="@p.Currency"
+                                            selected="@(p.Id == Model.Input.LineItems[i].ProductId)">
+                                        @p.Name (@p.Sku) — @p.UnitPrice.ToString("N2") @p.Currency
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity</label>
+                            <input name="Input.LineItems[@i].Quantity" type="number" min="1"
+                                   class="form-control quantity-input"
+                                   value="@Model.Input.LineItems[i].Quantity" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Discount %</label>
+                            <input name="Input.LineItems[@i].DiscountPercent" type="number" min="0" max="100" step="0.01"
+                                   class="form-control discount-input"
+                                   value="@Model.Input.LineItems[i].DiscountPercent" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Line Total</label>
+                            <input type="text" class="form-control line-total" readonly tabindex="-1" />
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-outline-danger btn-remove-line" title="Remove">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div id="noItemsMessage" class="text-center text-muted py-3" style="display: @(Model.Input.LineItems.Any() ? "none" : "block")">
+                No line items added. Click "Add Product" to begin.
+            </div>
+
+            <hr />
+            <div class="row">
+                <div class="col-md-8"></div>
+                <div class="col-md-4 text-end">
+                    <h5>Estimated Total: <span id="grandTotal" class="text-primary">0.00</span> <span id="totalCurrency">EUR</span></h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle me-2"></i>Create Quote
+        </button>
+        <a asp-page="/Quotes/Index" class="btn btn-outline-secondary btn-lg">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/quote-form.js"></script>
+}

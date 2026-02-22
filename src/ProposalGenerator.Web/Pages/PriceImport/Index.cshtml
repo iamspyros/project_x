@@ -1,0 +1,151 @@
+@page
+@model ProposalGenerator.Web.Pages.PriceImport.IndexModel
+@{
+    ViewData["Title"] = "Price Import";
+}
+
+<div class="mb-4">
+    <h1><i class="bi bi-upload me-2"></i>Price Import</h1>
+    <p class="text-muted">Import product prices from CSV files. You can upload a file or import from the configured folder.</p>
+</div>
+
+<div class="row g-4">
+    <!-- Upload CSV -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="csvFile" class="form-label">Select CSV file</label>
+                        <input type="file" class="form-control" id="csvFile" name="csvFile" accept=".csv" required />
+                        <div class="form-text">
+                            Expected columns: <code>Name, Sku, Description, Category, UnitPrice, Currency, CommitmentTerm, BillingFrequency</code>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Upload &amp; Import
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import from Folder -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-folder me-2"></i>Import from Folder</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.AvailableFiles.Any())
+                {
+                    <p>Available CSV files in the import folder:</p>
+                    <form method="post" asp-page-handler="ImportFile">
+                        <div class="mb-3">
+                            <select name="fileName" class="form-select" required>
+                                <option value="">-- Select a file --</option>
+                                @foreach (var file in Model.AvailableFiles)
+                                {
+                                    <option value="@file">@file</option>
+                                }
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-download me-1"></i>Import Selected File
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-folder2-open display-4"></i>
+                        <p class="mt-2">No CSV files found in the import folder.</p>
+                        <p class="small">Configure the import folder path in <code>appsettings.json</code> under <code>PriceImport:FolderPath</code></p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Result -->
+@if (Model.ImportResult != null)
+{
+    <div class="card mt-4">
+        <div class="card-header @(Model.ImportResult.Success ? "bg-success text-white" : "bg-danger text-white")">
+            <h5 class="mb-0">
+                <i class="bi @(Model.ImportResult.Success ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                Import Result — @Model.ImportResult.FileName
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center g-3">
+                <div class="col">
+                    <h3>@Model.ImportResult.TotalRows</h3>
+                    <small class="text-muted">Total Rows</small>
+                </div>
+                <div class="col">
+                    <h3 class="text-success">@Model.ImportResult.Imported</h3>
+                    <small class="text-muted">Imported (New)</small>
+                </div>
+                <div class="col">
+                    <h3 class="text-info">@Model.ImportResult.Updated</h3>
+                    <small class="text-muted">Updated</small>
+                </div>
+                <div class="col">
+                    <h3 class="text-warning">@Model.ImportResult.Skipped</h3>
+                    <small class="text-muted">Skipped</small>
+                </div>
+            </div>
+
+            @if (Model.ImportResult.Errors.Any())
+            {
+                <hr />
+                <h6 class="text-danger">Errors:</h6>
+                <ul class="list-group list-group-flush">
+                    @foreach (var err in Model.ImportResult.Errors)
+                    {
+                        <li class="list-group-item list-group-item-danger">
+                            <i class="bi bi-x-circle me-1"></i>@err
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+<!-- CSV Format Reference -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV Format Reference</h5>
+    </div>
+    <div class="card-body">
+        <p>Your CSV file should have the following columns (header row required):</p>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Column</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>Name</code></td><td>Yes</td><td>Product name</td><td>Business Voice Premium</td></tr>
+                    <tr><td><code>Sku</code></td><td>Yes</td><td>Unique product SKU</td><td>VOD-VOICE-001</td></tr>
+                    <tr><td><code>Description</code></td><td>No</td><td>Product description</td><td>Premium unified voice solution</td></tr>
+                    <tr><td><code>Category</code></td><td>No</td><td>Product category</td><td>Voice</td></tr>
+                    <tr><td><code>UnitPrice</code></td><td>Yes</td><td>Price per unit</td><td>29.99</td></tr>
+                    <tr><td><code>Currency</code></td><td>No</td><td>Currency code (default: EUR)</td><td>EUR</td></tr>
+                    <tr><td><code>CommitmentTerm</code></td><td>No</td><td>Contract term</td><td>24 months</td></tr>
+                    <tr><td><code>BillingFrequency</code></td><td>No</td><td>Billing cycle</td><td>Monthly</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
