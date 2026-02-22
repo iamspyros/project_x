@@ -168,7 +168,7 @@ public class DocumentService : IDocumentService
         foreach (Aspose.Words.Section section in doc.Sections)
         {
             var header = section.HeadersFooters[HeaderFooterType.HeaderPrimary]
-                ?? section.HeadersFooters.Add(HeaderFooterType.HeaderPrimary);
+                ?? (HeaderFooter)section.HeadersFooters.Add(new HeaderFooter(doc, HeaderFooterType.HeaderPrimary));
             header.AppendChild(shape.Clone(true));
         }
     }
